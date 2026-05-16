@@ -25,19 +25,12 @@ function buildBriefFromUrl(url) {
   ].join("\n\n");
 }
 
-function buildBriefFromManual(d) {
+function buildBriefFromManual(rawText) {
   return [
-    "You are a business operations analyst. Based on the information below provided directly by the business owner, create a structured business brief.",
-    "Business Name: " + d.businessName,
-    "What They Do: " + d.whatTheyDo,
-    "Who They Serve: " + d.whoTheyServe,
-    "Team Size: " + d.teamSize,
-    "Services Offered: " + d.services,
-    "Current Tools and Software: " + d.tools,
-    "Biggest Operational Gaps: " + d.gaps,
-    "What Breaks When Owner Is Away: " + d.breaks,
-    "Additional Notes: " + d.additionalNotes,
-    "FORMAT YOUR OUTPUT as a clean business brief with sections SERVICES, OPERATIONAL MODEL, CUSTOMER PROFILE, COMMUNICATION AND BRAND, SERVICE AREA AND SCALE, and GAPS. Write it as a professional summary a consultant would hand to a senior colleague.",
+    "You are a business operations analyst. Below is raw information about a business provided directly by a consultant. It may be messy notes, an intake form, a discovery transcript, or any other unstructured source. Read all of it and extract everything relevant to build a structured business brief.",
+    "RAW CLIENT INFORMATION:",
+    rawText,
+    "FORMAT YOUR OUTPUT as a clean business brief with these sections clearly labeled: SERVICES, OPERATIONAL MODEL, CUSTOMER PROFILE, COMMUNICATION AND BRAND, SERVICE AREA AND SCALE, and GAPS. For the GAPS section, list anything important that the provided information did not cover and that you would still want to know before building their SOP system. Write it as a professional summary a consultant would hand to a senior colleague before a client meeting.",
   ].join("\n\n");
 }
 
@@ -83,7 +76,7 @@ async function callClaude(prompt, onChunk) {
       "anthropic-dangerous-direct-browser-access": "true",
     },
     body: JSON.stringify({
-      model: "claude-sonnet-4-20250514",
+      model: "claude-sonnet-4-6",
       max_tokens: 4000,
       stream: true,
       messages: [{ role: "user", content: prompt }],
@@ -183,33 +176,11 @@ function Btn(props) {
   );
 }
 
-function Field(props) {
-  const style = {
-    width: "100%", background: COLORS.bg, border: "1px solid " + COLORS.border,
-    borderRadius: 6, padding: "11px 14px", color: COLORS.text,
-    fontFamily: props.multi ? "Georgia, serif" : "inherit",
-    fontSize: 14, lineHeight: 1.6, outline: "none",
-    boxSizing: "border-box", resize: props.multi ? "vertical" : "none",
-  };
-  return (
-    <div style={{ marginBottom: 14 }}>
-      {props.label ? <label style={{ display: "block", fontSize: 11, color: COLORS.muted, marginBottom: 5, textTransform: "uppercase", letterSpacing: "0.08em" }}>{props.label}</label> : null}
-      {props.multi
-        ? <textarea value={props.value} onChange={function (e) { props.onChange(e.target.value); }} placeholder={props.placeholder} rows={props.rows || 4} style={style} />
-        : <input value={props.value} onChange={function (e) { props.onChange(e.target.value); }} placeholder={props.placeholder} style={style} />
-      }
-    </div>
-  );
-}
-
 export default function App() {
   const [step, setStep] = useState("start");
   const [mode, setMode] = useState("url");
   const [url, setUrl] = useState("");
-  const [manual, setManual] = useState({
-    businessName: "", whatTheyDo: "", whoTheyServe: "",
-    teamSize: "", services: "", tools: "", gaps: "", breaks: "", additionalNotes: "",
-  });
+  const [manualText, setManualText] = useState("");
   const [brief, setBrief] = useState("");
   const [stream, setStream] = useState("");
   const [discovery, setDiscovery] = useState("");
@@ -234,10 +205,9 @@ export default function App() {
   }
 
   function reset() {
-    setStep("start"); setUrl(""); setBrief(""); setStream("");
+    setStep("start"); setUrl(""); setManualText(""); setBrief(""); setStream("");
     setDiscovery(""); setAnswers(""); setPlan(""); setSopTitle(""); setSop("");
     setLoading(false); setError("");
-    setManual({ businessName: "", whatTheyDo: "", whoTheyServe: "", teamSize: "", services: "", tools: "", gaps: "", breaks: "", additionalNotes: "" });
   }
 
   const card = { background: COLORS.surface, border: "1px solid " + COLORS.border, borderRadius: 12, padding: 32, marginBottom: 16 };
@@ -245,6 +215,12 @@ export default function App() {
   const sub = { color: COLORS.muted, fontSize: 14, margin: "4px 0 0", lineHeight: 1.6 };
   const rowEnd = { display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 20 };
   const copyBtn = { background: "none", border: "1px solid " + COLORS.border, borderRadius: 4, padding: "4px 10px", color: COLORS.muted, cursor: "pointer", fontSize: 12, fontFamily: "inherit" };
+  const labelStyle = { display: "block", fontSize: 11, color: COLORS.muted, marginBottom: 5, textTransform: "uppercase", letterSpacing: "0.08em" };
+  const inputStyle = {
+    width: "100%", background: COLORS.bg, border: "1px solid " + COLORS.border,
+    borderRadius: 6, padding: "11px 14px", color: COLORS.text,
+    fontSize: 14, lineHeight: 1.6, outline: "none", boxSizing: "border-box",
+  };
 
   return (
     <div style={{ minHeight: "100vh", background: COLORS.bg, color: COLORS.text, fontFamily: "system-ui, sans-serif", padding: "40px 20px" }}>
@@ -267,7 +243,7 @@ export default function App() {
         {step === "start" ? (
           <div style={card}>
             <h2 style={{ ...h2, marginBottom: 8 }}>Client Information</h2>
-            <p style={{ ...sub, margin: "0 0 24px" }}>Use Website URL when the site is current. Use Manual Entry when it is not.</p>
+            <p style={{ ...sub, margin: "0 0 24px" }}>Use Website URL when the site is current. Use Manual Entry to paste in whatever you have about the client.</p>
             <div style={{ display: "flex", gap: 10, marginBottom: 24 }}>
               {[["url", "Website URL"], ["manual", "Manual Entry"]].map(function (pair) {
                 const m = pair[0];
@@ -284,24 +260,25 @@ export default function App() {
               })}
             </div>
             {mode === "url" ? (
-              <Field label="Business Website URL" value={url} onChange={setUrl} placeholder="https://example.com" />
+              <div style={{ marginBottom: 14 }}>
+                <label style={labelStyle}>Business Website URL</label>
+                <input value={url} onChange={function (e) { setUrl(e.target.value); }} placeholder="https://example.com" style={inputStyle} />
+              </div>
             ) : (
-              <div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 16px" }}>
-                  <Field label="Business Name" value={manual.businessName} onChange={function (v) { setManual(function (p) { return { ...p, businessName: v }; }); }} placeholder="Eagle Lawn and Snow" />
-                  <Field label="Team Size" value={manual.teamSize} onChange={function (v) { setManual(function (p) { return { ...p, teamSize: v }; }); }} placeholder="Owner plus 3 crew" />
-                </div>
-                <Field label="What They Do" value={manual.whatTheyDo} onChange={function (v) { setManual(function (p) { return { ...p, whatTheyDo: v }; }); }} placeholder="Lawn care and snow removal" />
-                <Field label="Who They Serve" value={manual.whoTheyServe} onChange={function (v) { setManual(function (p) { return { ...p, whoTheyServe: v }; }); }} placeholder="Busy homeowners" />
-                <Field label="Services Offered" value={manual.services} onChange={function (v) { setManual(function (p) { return { ...p, services: v }; }); }} placeholder="Weekly mowing, snow removal" multi rows={3} />
-                <Field label="Current Tools and Software" value={manual.tools} onChange={function (v) { setManual(function (p) { return { ...p, tools: v }; }); }} placeholder="Jobber, QuickBooks, WhatsApp" />
-                <Field label="Biggest Operational Gaps" value={manual.gaps} onChange={function (v) { setManual(function (p) { return { ...p, gaps: v }; }); }} placeholder="No written onboarding" multi rows={2} />
-                <Field label="What Breaks When Owner Is Away" value={manual.breaks} onChange={function (v) { setManual(function (p) { return { ...p, breaks: v }; }); }} placeholder="Client complaints go unanswered" multi rows={2} />
-                <Field label="Additional Notes" value={manual.additionalNotes} onChange={function (v) { setManual(function (p) { return { ...p, additionalNotes: v }; }); }} placeholder="Anything else relevant" multi rows={2} />
+              <div style={{ marginBottom: 14 }}>
+                <label style={labelStyle}>Everything You Know About The Client</label>
+                <p style={{ ...sub, margin: "0 0 10px" }}>Paste anything here: discovery notes, intake form contents, a call transcript, a document you copied. Messy is fine. Claude will pull what it needs and build the structured brief.</p>
+                <textarea
+                  value={manualText}
+                  onChange={function (e) { setManualText(e.target.value); }}
+                  placeholder="Paste all client information here..."
+                  rows={14}
+                  style={{ ...inputStyle, fontFamily: "Georgia, serif", lineHeight: 1.7, resize: "vertical" }}
+                />
               </div>
             )}
             <div style={rowEnd}>
-              <Btn onClick={function () { setStep("brief"); run(mode === "url" ? buildBriefFromUrl(url) : buildBriefFromManual(manual), setBrief); }} disabled={mode === "url" ? !url.trim() : !manual.businessName.trim()}>
+              <Btn onClick={function () { setStep("brief"); run(mode === "url" ? buildBriefFromUrl(url) : buildBriefFromManual(manualText), setBrief); }} disabled={mode === "url" ? !url.trim() : !manualText.trim()}>
                 Run Prompt 1 - Build Business Brief
               </Btn>
             </div>
@@ -336,7 +313,8 @@ export default function App() {
             {!loading && discovery ? (
               <div style={{ marginTop: 24 }}>
                 <div style={{ height: 1, background: COLORS.border, margin: "0 0 20px" }} />
-                <Field label="Your Discovery Answers" value={answers} onChange={setAnswers} placeholder="Paste your call notes or type answers here" multi rows={10} />
+                <label style={labelStyle}>Your Discovery Answers</label>
+                <textarea value={answers} onChange={function (e) { setAnswers(e.target.value); }} placeholder="Paste your call notes or type answers here" rows={10} style={{ ...inputStyle, fontFamily: "Georgia, serif", lineHeight: 1.7, resize: "vertical" }} />
                 <div style={rowEnd}>
                   <Btn secondary onClick={reset}>Start Over</Btn>
                   <Btn onClick={function () { setStep("plan"); run(sopPlan(brief, answers), setPlan); }} disabled={!answers.trim()}>Run Prompt 3 - Build SOP Plan</Btn>
@@ -357,7 +335,8 @@ export default function App() {
             {!loading && plan ? (
               <div style={{ marginTop: 24 }}>
                 <div style={{ height: 1, background: COLORS.border, margin: "0 0 20px" }} />
-                <Field label="Which SOP do you want to write first" value={sopTitle} onChange={setSopTitle} placeholder="e.g. Daily Crew Launch and Morning Routine" />
+                <label style={labelStyle}>Which SOP do you want to write first</label>
+                <input value={sopTitle} onChange={function (e) { setSopTitle(e.target.value); }} placeholder="e.g. Daily Crew Launch and Morning Routine" style={inputStyle} />
                 <div style={rowEnd}>
                   <Btn secondary onClick={reset}>Start Over</Btn>
                   <Btn onClick={function () { setStep("done"); run(writeSop(brief, sopTitle), setSop); }} disabled={!sopTitle.trim()}>Run Prompt 4 - Write the SOP</Btn>
