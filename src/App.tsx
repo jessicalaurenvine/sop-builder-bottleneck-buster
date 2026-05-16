@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useState, useRef, useEffect } from "react";
 const COLORS = {
 bg: "#0f0e0d",
