@@ -105,12 +105,13 @@ function writeSop(brief, sopTitle, updatedBy, updatedDate) {
     "Write in plain direct language. No jargon. Every sentence earns its place. Format so it pastes cleanly into a Google Doc."].join("\n\n");
 }
 
-function updateSop(existingSop, whatChanged, updatedBy) {
+function updateSop(existingSop, whatChanged, updatedBy, today) {
   return ["You are an SOP writer. An existing SOP needs to be updated to reflect a change in how the work is done.",
     "EXISTING SOP:", existingSop,
     "WHAT CHANGED: " + whatChanged,
     "UPDATED BY: " + updatedBy,
-    "Rewrite the SOP incorporating the change throughout all relevant sections. Update the DOCUMENT INFO section with today's date and the name provided. Add a new row to the UPDATE LOG table documenting what changed and increment the version number.",
+    "TODAY\'S DATE: " + today + " — use this exact date in the DOCUMENT INFO Last Updated field and in the new UPDATE LOG row. Do not use any other date.",
+    "Rewrite the SOP incorporating the change throughout all relevant sections. Update the DOCUMENT INFO section with the date provided above and the name provided. Add a new row to the UPDATE LOG table documenting what changed and increment the version number.",
     "Keep everything that did not change exactly as it was. Only update what the change affects.",
     "Write in the same plain direct language as the original."].join("\n\n");
 }
@@ -298,6 +299,7 @@ function HomeScreen({ onMode }) {
   const pct = Math.round((used / TOKEN_CAP) * 100);
   return (
     <div style={{ minHeight: "100vh", background: COLORS.bg, color: COLORS.text, fontFamily: "system-ui, sans-serif", padding: "40px 20px" }}>
+      <style>{`@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }`}</style>
       <div style={{ maxWidth: 740, margin: "0 auto" }}>
         <div style={{ textAlign: "center", marginBottom: 52 }}>
           <div style={{ fontSize: 11, color: COLORS.accent, letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: 10 }}>Bottleneck Buster</div>
@@ -336,7 +338,7 @@ function HomeScreen({ onMode }) {
             </div>
             <span style={{ fontSize: 13, color: COLORS.muted }}>{used.toLocaleString()} / {TOKEN_CAP.toLocaleString()} tokens</span>
           </div>
-          <div style={{ fontSize: 12, color: COLORS.muted, marginTop: 8 }}>Resets on the 1st of each month. Need more? Upgrade to the monthly plan at $50/month.</div>
+          <div style={{ fontSize: 12, color: COLORS.muted, marginTop: 8 }}>Resets on the 1st of each month.</div>
         </div>
       </div>
     </div>
@@ -436,6 +438,7 @@ function BuildFlow({ onHome }) {
               {brief && <button onClick={() => navigator.clipboard.writeText(brief)} style={copyBtn}>Copy</button>}
             </div>
             <p style={subStyle}>Prompt 1 complete. Review the brief then generate discovery questions.</p>
+            {loading && <div style={{display:"flex",alignItems:"center",gap:8,marginTop:12,color:COLORS.accent,fontSize:13}}><span style={{animation:"pulse 1.5s infinite"}}>●</span> Generating — this takes about 30 seconds...</div>}
             <OutputBox text={loading ? stream : brief} loading={loading} />
             {!loading && brief && (
               <div style={rowEnd}>
@@ -537,10 +540,11 @@ function UpdateFlow({ onHome }) {
   const run = async () => {
     setLoading(true); setStream(""); setError("");
     try {
-      const r = await callClaude(updateSop(existingSop, whatChanged, updatedBy), setStream);
+      const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' });
+      const r = await callClaude(updateSop(existingSop, whatChanged, updatedBy, today), setStream);
       setResult(r);
     } catch (e) {
-      if (e.message === "TOKEN_CAP") setError("Monthly token limit reached. Upgrade to the $50/month plan to continue.");
+      if (e.message === "TOKEN_CAP") setError("Your monthly token allocation has been used. It resets on the 1st — or contact jessica@jessicalaurenvine.com if you need assistance.");
       else setError("Something went wrong. Please try again.");
     }
     setLoading(false);
@@ -648,7 +652,7 @@ function AskFlow({ onHome }) {
         <div style={{ ...cardStyle, background: "#0f1f0f", border: "1px solid #1a3f1a", marginBottom: 20 }}>
           <div style={{ fontSize: 13, color: COLORS.success, lineHeight: 1.6 }}>
             <strong style={{ display: "block", marginBottom: 4 }}>For team members</strong>
-            Paste your company's SOP library below, then ask any question about how to handle a situation. No Claude account needed — just the access code your manager gave you.
+            Paste your company's SOP library below, then ask any question about how to handle a situation. No Claude account needed — your manager will share this link with you.
           </div>
         </div>
 
