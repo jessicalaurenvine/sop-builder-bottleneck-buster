@@ -336,7 +336,7 @@ function HomeScreen({ onMode }) {
             </div>
             <span style={{ fontSize: 13, color: COLORS.muted }}>{used.toLocaleString()} / {TOKEN_CAP.toLocaleString()} tokens</span>
           </div>
-          <div style={{ fontSize: 12, color: COLORS.muted, marginTop: 8 }}>Resets on the 1st of each month.</div>
+          <div style={{ fontSize: 12, color: COLORS.muted, marginTop: 8 }}>Resets on the 1st of each month. Need more? Upgrade to the monthly plan at $50/month.</div>
         </div>
       </div>
     </div>
@@ -540,7 +540,7 @@ function UpdateFlow({ onHome }) {
       const r = await callClaude(updateSop(existingSop, whatChanged, updatedBy), setStream);
       setResult(r);
     } catch (e) {
-      if (e.message === "TOKEN_CAP") setError("Your monthly token allocation has been used. It resets on the 1st — or contact jessica@jessicalaurenvine.com if you need assistance.");
+      if (e.message === "TOKEN_CAP") setError("Monthly token limit reached. Upgrade to the $50/month plan to continue.");
       else setError("Something went wrong. Please try again.");
     }
     setLoading(false);
