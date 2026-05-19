@@ -105,12 +105,13 @@ function writeSop(brief, sopTitle, updatedBy, updatedDate) {
     "Write in plain direct language. No jargon. Every sentence earns its place. Format so it pastes cleanly into a Google Doc."].join("\n\n");
 }
 
-function updateSop(existingSop, whatChanged, updatedBy) {
+function updateSop(existingSop, whatChanged, updatedBy, today) {
   return ["You are an SOP writer. An existing SOP needs to be updated to reflect a change in how the work is done.",
     "EXISTING SOP:", existingSop,
     "WHAT CHANGED: " + whatChanged,
     "UPDATED BY: " + updatedBy,
-    "Rewrite the SOP incorporating the change throughout all relevant sections. Update the DOCUMENT INFO section with today's date and the name provided. Add a new row to the UPDATE LOG table documenting what changed and increment the version number.",
+    "TODAY\'S DATE: " + today + " — use this exact date in the DOCUMENT INFO Last Updated field and in the new UPDATE LOG row. Do not use any other date.",
+    "Rewrite the SOP incorporating the change throughout all relevant sections. Update the DOCUMENT INFO section with the date provided above and the name provided. Add a new row to the UPDATE LOG table documenting what changed and increment the version number.",
     "Keep everything that did not change exactly as it was. Only update what the change affects.",
     "Write in the same plain direct language as the original."].join("\n\n");
 }
@@ -298,18 +299,20 @@ function HomeScreen({ onMode }) {
   const pct = Math.round((used / TOKEN_CAP) * 100);
   return (
     <div style={{ minHeight: "100vh", background: COLORS.bg, color: COLORS.text, fontFamily: "system-ui, sans-serif", padding: "40px 20px" }}>
+      <style>{`@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }`}</style>
       <div style={{ maxWidth: 740, margin: "0 auto" }}>
         <div style={{ textAlign: "center", marginBottom: 52 }}>
           <div style={{ fontSize: 11, color: COLORS.accent, letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: 10 }}>Bottleneck Buster</div>
           <h1 style={{ fontFamily: "Georgia, serif", fontSize: 36, fontWeight: 700, margin: "0 0 10px" }}>What do you want to do?</h1>
-          <p style={{ color: COLORS.muted, fontSize: 15, margin: 0 }}>Build a new SOP library, update an existing SOP, or let your team ask questions.</p>
+          <p style={{ color: COLORS.muted, fontSize: 15, margin: 0 }}>Build a new SOP library, add a new SOP, update an existing SOP, or let your team ask questions.</p>
         </div>
 
         <TokenMeter />
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
           {[
-            { mode: "build", icon: "⚡", title: "Build SOPs", desc: "Start from scratch. Four prompts take you from your website to a complete documented system.", color: COLORS.accent },
+            { mode: "build", icon: "⚡", title: "Build SOPs", desc: "First time? Start here. Four prompts take you from your website to a complete SOP plan and your first documents.", color: COLORS.accent },
+            { mode: "addsop", icon: "📄", title: "Add a New SOP", desc: "Already have your business brief? Skip the discovery and go straight to writing a new SOP.", color: "#f59e0b" },
             { mode: "update", icon: "↺", title: "Update an SOP", desc: "Something changed in how you do the work. Paste the existing SOP and describe what's different.", color: COLORS.blue },
             { mode: "ask", icon: "💬", title: "Ask My SOPs", desc: "Team member? Paste your SOP library and ask any question. No Claude account needed.", color: COLORS.success },
           ].map(({ mode, icon, title, desc, color }) => (
@@ -336,7 +339,7 @@ function HomeScreen({ onMode }) {
             </div>
             <span style={{ fontSize: 13, color: COLORS.muted }}>{used.toLocaleString()} / {TOKEN_CAP.toLocaleString()} tokens</span>
           </div>
-          <div style={{ fontSize: 12, color: COLORS.muted, marginTop: 8 }}>Resets on the 1st of each month. Need more? Upgrade to the monthly plan at $50/month.</div>
+          <div style={{ fontSize: 12, color: COLORS.muted, marginTop: 8 }}>Resets on the 1st of each month.</div>
         </div>
       </div>
     </div>
@@ -436,6 +439,7 @@ function BuildFlow({ onHome }) {
               {brief && <button onClick={() => navigator.clipboard.writeText(brief)} style={copyBtn}>Copy</button>}
             </div>
             <p style={subStyle}>Prompt 1 complete. Review the brief then generate discovery questions.</p>
+            {loading && <div style={{display:"flex",alignItems:"center",gap:8,marginTop:12,color:COLORS.accent,fontSize:13}}><span style={{animation:"pulse 1.5s infinite"}}>●</span> Generating — this takes about 30 seconds...</div>}
             <OutputBox text={loading ? stream : brief} loading={loading} />
             {!loading && brief && (
               <div style={rowEnd}>
@@ -537,10 +541,11 @@ function UpdateFlow({ onHome }) {
   const run = async () => {
     setLoading(true); setStream(""); setError("");
     try {
-      const r = await callClaude(updateSop(existingSop, whatChanged, updatedBy), setStream);
+      const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' });
+      const r = await callClaude(updateSop(existingSop, whatChanged, updatedBy, today), setStream);
       setResult(r);
     } catch (e) {
-      if (e.message === "TOKEN_CAP") setError("Monthly token limit reached. Upgrade to the $50/month plan to continue.");
+      if (e.message === "TOKEN_CAP") setError("Your monthly token allocation has been used. It resets on the 1st — or contact jessica@jessicalaurenvine.com if you need assistance.");
       else setError("Something went wrong. Please try again.");
     }
     setLoading(false);
@@ -648,7 +653,7 @@ function AskFlow({ onHome }) {
         <div style={{ ...cardStyle, background: "#0f1f0f", border: "1px solid #1a3f1a", marginBottom: 20 }}>
           <div style={{ fontSize: 13, color: COLORS.success, lineHeight: 1.6 }}>
             <strong style={{ display: "block", marginBottom: 4 }}>For team members</strong>
-            Paste your company's SOP library below, then ask any question about how to handle a situation. No Claude account needed — just the access code your manager gave you.
+            Paste your company's SOP library below, then ask any question about how to handle a situation. No Claude account needed — your manager will share this link with you.
           </div>
         </div>
 
@@ -695,12 +700,111 @@ function AskFlow({ onHome }) {
   );
 }
 
+
+// ── ADD SOP FLOW ──────────────────────────────────────
+function AddSopFlow({ onHome }) {
+  const [brief, setBrief] = useState("");
+  const [sopTitle, setSopTitle] = useState("");
+  const [updatedBy, setUpdatedBy] = useState("");
+  const [sop, setSop] = useState("");
+  const [stream, setStream] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const run = async () => {
+    setLoading(true); setStream(""); setError("");
+    try {
+      const today = new Date().toLocaleDateString("en-US", { year: "numeric", month: "2-digit", day: "2-digit" });
+      const r = await callClaude(writeSop(brief, sopTitle, updatedBy, today), setStream);
+      setSop(r);
+    } catch (e) {
+      if (e.message === "TOKEN_CAP") setError("Your monthly token allocation has been used. It resets on the 1st — or contact jessica@jessicalaurenvine.com if you need assistance.");
+      else setError("Something went wrong. Please try again.");
+    }
+    setLoading(false);
+  };
+
+  return (
+    <div style={{ minHeight: "100vh", background: COLORS.bg, color: COLORS.text, fontFamily: "system-ui, sans-serif", padding: "40px 20px" }}>
+      <div style={{ maxWidth: 740, margin: "0 auto" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 40 }}>
+          <div>
+            <div style={{ fontSize: 11, color: "#f59e0b", letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: 6 }}>Bottleneck Buster</div>
+            <h1 style={{ fontFamily: "Georgia, serif", fontSize: 28, fontWeight: 700, margin: 0 }}>Add a New SOP</h1>
+          </div>
+          <button onClick={onHome} style={{ background: "none", border: "1px solid " + COLORS.border, borderRadius: 6, padding: "7px 14px", color: COLORS.muted, cursor: "pointer", fontSize: 13, fontFamily: "inherit" }}>← Home</button>
+        </div>
+
+        <TokenMeter />
+
+        <div style={{ background: "#1a1500", border: "1px solid #3a2e00", borderRadius: 12, padding: "16px 20px", marginBottom: 20, fontSize: 13, color: "#f59e0b", lineHeight: 1.6 }}>
+          <strong style={{ display: "block", marginBottom: 4 }}>For returning users</strong>
+          You already ran the full workflow. Paste your business brief from Google Drive, enter the SOP title from your Phase 1 plan, and this goes straight to writing — no discovery needed.
+        </div>
+
+        {error && <div style={{ background: "#3f1010", border: "1px solid #7f2020", borderRadius: 8, padding: "12px 16px", marginBottom: 20, fontSize: 14, color: COLORS.error }}>{error}</div>}
+
+        {!sop ? (
+          <div style={cardStyle}>
+            <div style={{ marginBottom: 20 }}>
+              <label style={labelStyle}>Paste your business brief</label>
+              <p style={{ ...subStyle, fontSize: 13, margin: "0 0 8px" }}>Copy the business brief from your Google Drive or from a previous session. This is the output of Prompt 1.</p>
+              <textarea value={brief} onChange={e => setBrief(e.target.value)} placeholder="Paste your business brief here..." rows={10} style={{ ...inputBase, fontFamily: "Georgia, serif", lineHeight: 1.7, resize: "vertical" }} />
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 16px", marginBottom: 20 }}>
+              <div>
+                <label style={labelStyle}>SOP Title (from your Phase 1 list)</label>
+                <input value={sopTitle} onChange={e => setSopTitle(e.target.value)} placeholder="e.g. Client Onboarding Process" style={inputBase} />
+              </div>
+              <div>
+                <label style={labelStyle}>Your Name (for document records)</label>
+                <input value={updatedBy} onChange={e => setUpdatedBy(e.target.value)} placeholder="e.g. Jessica Vine" style={inputBase} />
+              </div>
+            </div>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
+              <button onClick={onHome} style={{ padding: "11px 24px", borderRadius: 6, border: "1px solid " + COLORS.border, background: "transparent", color: COLORS.muted, cursor: "pointer", fontFamily: "inherit", fontSize: 14, fontWeight: 600 }}>Back</button>
+              <button onClick={run} disabled={!brief.trim() || !sopTitle.trim() || loading} style={{ padding: "11px 24px", borderRadius: 6, border: "none", background: "#f59e0b", color: "#000", cursor: !brief.trim() || !sopTitle.trim() || loading ? "not-allowed" : "pointer", fontFamily: "inherit", fontSize: 14, fontWeight: 600, opacity: !brief.trim() || !sopTitle.trim() || loading ? 0.4 : 1 }}>
+                {loading ? "Writing SOP..." : "Write This SOP →"}
+              </button>
+            </div>
+            {loading && (
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 12, color: "#f59e0b", fontSize: 13 }}>
+                  <span style={{ animation: "pulse 1.5s infinite" }}>●</span> Generating — this takes about 30 seconds...
+                </div>
+                <div style={{ background: COLORS.bg, border: "1px solid " + COLORS.border, borderRadius: 8, padding: "16px 20px", maxHeight: 280, overflowY: "auto", fontFamily: "Georgia, serif", fontSize: 14, lineHeight: 1.8, color: COLORS.text, whiteSpace: "pre-wrap", wordBreak: "break-word", marginTop: 16 }}>{stream}</div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div style={cardStyle}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+              <h2 style={{ fontFamily: "Georgia, serif", fontSize: 22, margin: 0, color: COLORS.text }}>✓ SOP Complete</h2>
+              <button onClick={() => navigator.clipboard.writeText(sop)} style={{ background: "#f59e0b", border: "none", borderRadius: 6, padding: "7px 14px", color: "#000", cursor: "pointer", fontSize: 13, fontWeight: 600, fontFamily: "inherit" }}>Copy SOP</button>
+            </div>
+            <p style={{ color: COLORS.success, fontSize: 13, margin: "0 0 4px" }}>Ready to paste into Google Drive.</p>
+            <div style={{ background: COLORS.bg, border: "1px solid " + COLORS.border, borderRadius: 8, padding: "16px 20px", maxHeight: 420, overflowY: "auto", fontFamily: "Georgia, serif", fontSize: 14, lineHeight: 1.8, color: COLORS.text, whiteSpace: "pre-wrap", wordBreak: "break-word", marginTop: 16 }}>{sop}</div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 20 }}>
+              <span style={{ fontSize: 13, color: COLORS.muted }}>Copy → paste into a new Google Doc → save to your SOP folder.</span>
+              <div style={{ display: "flex", gap: 10 }}>
+                <button onClick={() => { setSop(""); setSopTitle(""); setStream(""); }} style={{ padding: "11px 24px", borderRadius: 6, border: "1px solid " + COLORS.border, background: "transparent", color: COLORS.muted, cursor: "pointer", fontFamily: "inherit", fontSize: 14, fontWeight: 600 }}>Write Another SOP</button>
+                <button onClick={onHome} style={{ padding: "11px 24px", borderRadius: 6, border: "none", background: COLORS.blue, color: "#fff", cursor: "pointer", fontFamily: "inherit", fontSize: 14, fontWeight: 600 }}>Home</button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── ROOT APP ──────────────────────────────────────
 export default function App() {
   const [view, setView] = useState(isAccessGranted() ? "home" : "gate");
 
   if (view === "gate") return <GateScreen onAccess={() => setView("home")} />;
   if (view === "build") return <BuildFlow onHome={() => setView("home")} />;
+  if (view === "addsop") return <AddSopFlow onHome={() => setView("home")} />;
   if (view === "update") return <UpdateFlow onHome={() => setView("home")} />;
   if (view === "ask") return <AskFlow onHome={() => setView("home")} />;
   return <HomeScreen onMode={setView} />;
