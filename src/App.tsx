@@ -739,7 +739,7 @@ function AddSopFlow({ onHome }) {
 
         <div style={{ background: "#1a1500", border: "1px solid #3a2e00", borderRadius: 12, padding: "16px 20px", marginBottom: 20, fontSize: 13, color: "#f59e0b", lineHeight: 1.6 }}>
           <strong style={{ display: "block", marginBottom: 4 }}>For returning users</strong>
-          You already ran the full workflow. Paste your business brief from Google Drive, enter the SOP title from your Phase 1 plan, and this goes straight to writing — no discovery needed.
+          You already ran the full workflow. Paste your business brief from Google Drive, enter the SOP title you want to write, and this goes straight to writing — no discovery needed.
         </div>
 
         {error && <div style={{ background: "#3f1010", border: "1px solid #7f2020", borderRadius: 8, padding: "12px 16px", marginBottom: 20, fontSize: 14, color: COLORS.error }}>{error}</div>}
@@ -754,7 +754,7 @@ function AddSopFlow({ onHome }) {
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 16px", marginBottom: 20 }}>
               <div>
                 <label style={labelStyle}>SOP Title (from your Phase 1 list)</label>
-                <input value={sopTitle} onChange={e => setSopTitle(e.target.value)} placeholder="e.g. Client Onboarding Process" style={inputBase} />
+                <input value={sopTitle} onChange={e => setSopTitle(e.target.value)} placeholder="e.g. Client Complaint and Recovery" style={inputBase} />
               </div>
               <div>
                 <label style={labelStyle}>Your Name (for document records)</label>
